@@ -1,19 +1,68 @@
 "use client";
 import { UploadButton, UploadDropzone, Uploader } from "@/libs/uploadthing";
 import { FileText, Pencil, Plus } from "lucide-react";
+import { OpenAI } from "openai";
 import Image from "next/image";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const prompt_text = `You are a highly knowledgeable ophthalmologist expert.
+    Your task is to examine and diagnosis the disease may have the following image in detail.
+    Provide a comprehensive, factual, and scientifically accurate explanation of what the image.
+    Highlight key elements and their significance, and present your analysis in clear, well-structured markdown format.`;
+
 export default function Home() {
-  const [imageUrl, setImageUrl] = useState("");
-  const [pdfUrl, setPdfUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState(
+    "https://utfs.io/f/024715a8-4d69-46d0-bc91-7d175d513402-gcjq6e.jpg"
+  );
+  const [message, setMessage] = useState("");
   const { handleSubmit, register, reset } = useForm();
-  async function onSubmit(data) {
-    data.productImageUrl = imageUrl;
-    data.pdfUrl = pdfUrl;
-    console.log(data);
-  }
+
+  const onSubmit = async () => {
+    // Assuming you have an OpenAI API key
+
+    try {
+      // Make a request to OpenAI API
+      const completions = await openai.chat.completions.create({
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: prompt_text,
+              },
+              {
+                type: "image_url",
+                image_url: imageUrl,
+              },
+            ],
+          },
+        ],
+        model: "gpt-4-vision-preview",
+        stream: false,
+        max_tokens: 1200,
+      });
+
+      if (!completions.ok) {
+        throw new Error(`OpenAI API error: ${completions.statusText}`);
+      }
+
+      const result = await completions.json();
+      setMessage(result);
+
+      // Do something with the OpenAI API result
+      // For example, you can set the result in the state and display it to the user
+    } catch (error) {
+      console.error("Error calling OpenAI API:", error.message);
+      // Handle errors accordingly
+    }
+  };
+
   return (
     <div className="w-full max-w-3xl p-8 my-16 bg-white border border-gray-200 rounded-lg shadow mx-auto">
       <h2 className="text-4xl text-center font-semibold py-8">
@@ -68,6 +117,7 @@ export default function Home() {
           <span>Start Analyzing</span>
         </button>
       </form>
+      <p>{message}</p>
     </div>
   );
 }
